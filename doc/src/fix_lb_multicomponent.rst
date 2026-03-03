@@ -17,34 +17,38 @@ Syntax
 * dx = keyword for lattice spacing
 * dx_value = the lattice-Boltzmann grid spacing
 * zero or more keyword/value pairs may be appended
-* keyword = *tau_r* or *tau_p* or *tau_s* or *kappa1* or *kappa2* or *kappa3* or *alpha* or *gamma_p* or *gamma_s* or *C1* or *C2* or *C3* or *dumpxdmf* or *seed* or *init*
+* keyword = *tau_r* or *tau_p* or *tau_s* or *kappa1* or *kappa2* or *kappa3* or *alpha* or *gamma_p* or *gamma_s* or *C1* or *C2* or *C3* or *dumpxdmf* or *seed* or *init mixture* or *init droplet* or *init liquid_lens* or *init double_emulsion* or *init film* or *init mixed_droplet*
 
   .. parsed-literal::
 
-       *tau_r* value = relaxation time constant for the population distribution *f* - related to viscosity
-       *tau_p* value = relaxation time constant for the population distribution *g* - related to the mobility coefficient of the order parameter $\phi$
-       *tau_s* value = relaxation time constant for the population distribution *k* - related to the mobility coefficient of the order parameter $\psi$
-       *kappa1* value = energy gradient parameter for fluid 1 - used in surface tension calculation between fluid 1 and other fluids
-       *kappa2* value = energy gradient parameter for fluid 2 - used in surface tension calculation between fluid 2 and other fluids
-       *kappa3* value = energy gradient parameter for fluid 3 - used in surface tension calculation between fluid 3 and other fluids
-       *alpha* value = parameter related to the interface width measurement
-       *gamma_p* value = mobility coefficient for order parameter $\phi$
-       *gamma_s* value = mobility coefficient for order parameter $\psi$
-       *C1* value = bulk concentration of fluid component 1
-       *C2* value = bulk concentration of fluid component 2
-       *C3* value = bulk concentration of fluid component 3 (note: C1 + C2 + C3 = 1)
-       *dumpxdmf* values = N filename
-           N = output fluid fields every N timesteps
-           filename = base name for output files (.xdmf and .raw extensions added automatically)
-       *seed* value = random number generator seed (positive integer) - useful to initialize certain models like ternary mixture, ternary film, and ternary droplet 
-       *init* values = initialization_method [method_parameters]
-           initialization_method = *mixture* or *droplet* or *liquid_lens* or *double_emulsion* or *film* or *mixed_droplet*
-               *mixture* = well-mixed fluid mixture
-               *droplet* radius = droplet in a solvent model - droplet of fluid component 1 of given radius surrounded by fluid component 2 - droplet center is located at the center of the box
-               *liquid_lens* radius = lens of C3 with given radius between C1 and C2 layers
-               *double_emulsion* radius = Janus droplet (C1 and C2 hemispheres) of given radius in C3 solvent
-               *film* thickness C1_film C2_film = ternary film with specified thickness and composition
-               *mixed_droplet* radius C1_drop C2_drop = ternary droplet with specified radius and composition in bulk
+       *tau_r* value = tau_r = relaxation time constant for the population distribution *f* 
+       *tau_p* value = tau_p = relaxation time constant for the population distribution *g* 
+       *tau_s* value = tau_s = relaxation time constant for the population distribution *k* 
+       *kappa1* value = kappa1 = energy gradient parameter for fluid 1
+       *kappa2* value = kappa2 = energy gradient parameter for fluid 2
+       *kappa3* value = kappa3 = energy gradient parameter for fluid 3
+       *alpha* value = alpha parameter related to the interface width measurement
+       *gamma_p* value = gamma_p = mobility coefficient for order parameter :math:`\phi`
+       *gamma_s* value = gamma_s = mobility coefficient for order parameter :math:`\psi`
+       *C1* value = C1 = initial bulk composition of fluid component 1
+       *C2* value = C2 = initial bulk composition of fluid component 2
+       *C3* value = C3 = initial bulk composition of fluid component 3 (note: C1 + C2 + C3 = 1)
+       *dumpxdmf* values = dump_interval filename
+         dump_interval = output fluid fields every dump_interval timesteps
+         filename = base name for output files with extensions .xdmf and .raw
+       *seed* value = seed = random number generator seed (positive integer) used to create a random number following a Gaussian distribution.
+       *init mixture* value = none (initialize a well-mixed fluid mixture with compositions specified for *C1*, *C2*, *C3*) 
+       *init droplet* value = radius = radius of the sphere made of pure fluid component 1.
+       *init liquid_lens* value = radius = radius of the upper and lower radius of curvature used to model the ternary liquid lens.
+       *init double_emulsion* value = radius = radius of the hemispheres of fluid components  1 and 2 which makes a janus droplet.
+       *init film* values = thickness C1_film C2_film 
+         thickness = thickness of the film (given as the ratio with respect to the length along y-direction)
+         C1_film = fluid component 1 composition in the film
+         C2_film = fluid component 2 composition in the film
+       *init mixed_droplet* value = radius C1_drop C2_drop 
+         radius = radius of the mixed droplet
+         C1_drop = fluid component 1 composition in the mixed droplet
+         C2_drop = fluid component 2 composition in the mixed droplet
 
 
 Examples
@@ -61,17 +65,21 @@ Description
 
 .. versionadded:: 2024
 
-The **fix lb/multicomponent** command implements a ternary lattice Boltzmann model (LBM) for simulating three-dimensional multicomponent fluid systems. This fix is an extension of the single-component :doc:`fix lb/fluid <fix_lb_fluid>`, designed to capture complex interfacial and phase behaviors of three immiscible fluid components for various fluid models like ternary mixture, droplets, and films.
+The *fix lb/multicomponent* command implements a ternary free-energy lattice Boltzmann model (LBM) for simulating three-dimensional ternary fluid systems. This fix is an extension of the single-component :doc:`fix lb/fluid <fix_lb_fluid>`, designed to capture complex interfacial and phase behaviors of three immiscible fluid components for various fluid models like ternary mixture, droplets, and films.
 
-The algorithm evolves three distribution functions over a D3Q19 lattice and models thermodynamic interactions using the Landau-Ginzburg free-energy. This model is suitable for studying multi-component fluid interactions in the aspect of phase separation and interface dynamics.
+The thermodynamics of the ternary fluid system is specified in terms of a free energy :math:`F`. A common choice for immiscible ternary fluids is a double-well free energy of the form 
+.. math::
 
-The implementation follows the work described in Arumugam Kumar et al., "Implementation of a Ternary Lattice Boltzmann Model in LAMMPS," Comput. Phys. Commun. 294, 108898 (2024).
+    \frac{F}{\rho k_B T} = \int_V \left[\sum_{i = 1}^{3}\frac{\lambda_i}{2}C_i^2(1-C_i)^2+\frac{\kappa_i}{2}(\nabla C_i)^2\right] dV 
 
-----------
+where :math:`C_i` is the mass composition of the ternary fluid mixture. The energy penalty for the formation of interaces is dicated through :math:`\nabla C_i^2`. This leads to the surface tension :math:`\gamma_{mn}`  given by,
 
-**Model Overview**
+The stationary solution for the free energy in thermal equilibrium provides a diffuse interfacial profile, from which we can determine the interface width (between the fluid components :math:`m` and :math:`n`) and is propotional to :math:`\alpha = \sqrt{\frac{\lambda_m+\lambda_n}{\kappa_m + \kappa_n}}`. Assuming :math:`\lambda_i = \alpha^2\kappa`, the surface tension of the two fluids is given by 
+.. math::
 
-The ternary fluid composition is specified by three concentration fields $C_1$, $C_2$, and $C_3$, which are related to conserved order parameters:
+   \gamma_{mn} = \frac{1}{6\alpha}\left(\kappa_m + \kappa_n\right)
+
+The mass composition fields of the three fluid components 1, 2, 3 (:math:`C_1, C_2, C_3`), can be rewritten as the following order parameters:
 
 .. math::
 
@@ -79,78 +87,81 @@ The ternary fluid composition is specified by three concentration fields $C_1$, 
    \phi &= C_1 - C_2 \\
    \psi &= C_3
 
-where $\rho$ is the total density (approximately constant for incompressible flow), $\phi$ and \psi$ are order parameters that distinguish the three components.
+where :math:`\rho` is the fluid density (fixed to 1), :math:`\phi` and :math:`\psi` are order parameters that distinguish the three components. 
 
-The time evolution is described by three sets of distribution functions (f, g, h) that evolve according to the Bhatnagar-Gross-Krook (BGK) lattice Boltzmann equation:
+The fluid motion of the ternary fluids is governed by Cahn-Hilliard-Navier-Stokes equations,
+.. math::
 
+   \frac{\partial \rho}{\partial t} + \nabla \cdot (\rho \vec{u}) &= 0 , \\
+    \frac{\partial (\rho \vec{u})}{\partial t} + \nabla \cdot (\rho \vec{u}\vec{u}) &= -\nabla p_\text{id} + \nabla \cdot \eta(\nabla \vec{u} + \nabla \vec{u}^\text{T}) - \rho \nabla \mu_\rho - \phi \nabla \mu_\phi - \psi \nabla \mu_\psi \\    
+    \frac{\partial \phi}{\partial t} + \nabla \cdot (\phi \vec{u}) &= M_\phi \nabla^2\mu_\phi , \\
+    \frac{\partial \psi}{\partial t} + \nabla \cdot (\psi \vec{u}) &= M_\psi \nabla^2\mu_\psi
+
+where :math:`\eta` is the dynamic viscosity, :math:`u` is the local
+fluid velocity, :math:`p_\text{id}` is the ideal gas pressure and :math:`M_\phi` and :math:`M_\psi` are mobility parameters. The chemical potentials of the order parameters are the variational derivatives of the free energy (:math:`\mu_i = \partial F/\partial C_i`). The gradients of the chemical potential are the driving forces that give rise to phase segregation and diffusion.
+
+The lattice-Boltzmann algorithm solves for the fluid motion governed by
+Cahn-Hilliard-Navier-Stokes equations. To model a ternary fluid system, three distribution functions (:math:`f, g, h``) are used. These distribution functions
+evolve according to the Bhatnagar-Gross-Krook (BGK) lattice Boltzmann equation:
 
 .. math::
 
-   ```
-   \rho &= C_1 + C_2 + C_3 = 1 \\
-   \phi &= C_1 - C_2 \\
-   \psi &= C_3
-   ```
+    f_i (\vec{x} + \Delta t \vec{c_i}, t+\Delta t) = f_i^{*}(\vec{x}, t) = f_i(\vec{x}, t) - \frac{\Delta t}{\tau_\rho}\left[f_i(\vec{x}, t) - f_i^\text{eq} (\vec{x}, t)\right] , \\
+    g_i (\vec{x} + \Delta t \vec{c_i}, t+\Delta t) = g_i^{*}(\vec{x}, t) = g_i(\vec{x}, t) - \frac{\Delta t}{\tau_\phi}\left[g_i(\vec{x}, t) - g_i^\text{eq} (\vec{x}, t)\right] , \\
+    h_i (\vec{x} + \Delta t \vec{c_i}, t+\Delta t) = h_i^{*}(\vec{x}, t) = h_i(\vec{x}, t) - \frac{\Delta t}{\tau_\psi}\left[h_i(\vec{x}, t) - h_i^\text{eq} (\vec{x}, t)\right] ,
 
-with :math:`C_1, C_2, C_3` denoting component concentrations.
-## Keywords
+with :math:`\tau_\rho, \tau_\phi, \tau_\psi` denoting the user-defined time constants for individual LBM equations represents a single time relaxation towards the equilibrium distribution function (marked with :math:`{eq}` superscript), and has relations to macroscopic properties of viscosity (:math:`\eta`) and mobility/diffusion coefficients of the order parameters (:math:`M_\phi, M_\psi`).
+
+.. math::
+
+   \eta = \rhoc_s^2\left(\tau_\rho - \frac{1}{2}\right)\\
+   D_\phi = \Gamma_\phi\left(\tau_\phi - \frac{1}{2}\right)\\
+   D_\psi = \Gamma_\psi\left(\tau_\psi - \frac{1}{2}\right)
+
+where :math:`\Gamma_\phi, \Gamma_\psi` are user controlled constants. The algorithm evolves the three distribution functions over a D3Q19 velocity set (three-dimensional 19 velocity model).
+
+The full details of the lattice-Boltzmann algorithm formulated and implemented can be found in
+:ref:`Arumugam Kumar et al. <_ArumugamKumar2024>`.
 
 ----------
-
-**Initialization Methods**
 
 The *init* keyword specifies how the ternary fluid is initialized:
 
-* **mixture**: Creates a homogeneous mixture with bulk concentrations C1, C2, C3 plus small random fluctuations (±0.01) to seed phase separation. This is the default initialization if no *init* keyword is specified.
+* *init mixture*: Initializes a fluid mixture with initial bulk compositions for the three components (given as value entries to the keywords *C1*, *C2*, and *C3*) with small random fluctuations (of the order of 0.01) to initiate phase separation. This is the default initialization if no *init* keyword is specified.
 
-* **droplet** *radius*: Creates a binary droplet composed of equal parts C1 and C2 (C3 = 0) with specified radius (in lattice units) centered in the simulation box, surrounded by pure C3.
+* *init droplet*: Initializes a droplet of specified radius (given as input) composed of component 1. The droplet's center is located at the box center, surrounded by component 2 in bulk.
 
-* **liquid_lens** *radius*: Creates a lens-shaped droplet of pure C3 with specified radius positioned at the interface between horizontal layers of pure C1 (top half) and pure C2 (bottom half).
+* *init liquid_lens*: Initializes a lens-shaped droplet of pure component 3 with equal upper and lower radius, positioned at the interface between horizontal layers of component 1 (top half) and component 2 (bottom half).
 
-* **double_emulsion** *radius*: Creates a Janus-type double emulsion with a droplet of specified radius split into two hemispheres: left hemisphere of component 1 and right hemisphere of component 2, centered in the simulation box and surrounded by component 3 in bulk.
+* *init double_emulsion*: Initializes a droplet of specified radius with component 1 occupying the left hemisphere and component 2 occupying the right hemisphere. The model portrays a janus-type double emulsion. The droplet's center is located at the box center, surrounded by component 3 in bulk.
 
-* **film** *thickness* *C1_film* *C2_film*: Creates a horizontal film of specified thickness (as a fraction of the box height) centered in the simulation box with composition C1_film, C2_film, C3_film (C1_film + C2_film + C3_film = 1), surrounded by a bulk mixture of C1, C2, C3 (C1+C2+C3 = 1).
+* *init film*: Initializes a film of specified thickness. The thickness is defined as a fraction with respect to the box height along y-axis and covers around the center region of the simulation box. The film is composed of the three fluid components with the composition C1_film, C2_film, 1 - C1_film - C2_film. C1_film, C2_film are user defined input to this initialization method. The film is surrounded by a bulk fluid mixture of composition, given as value entries to *C1*, *C2*, *C3*.
 
-* **mixed_droplet** *radius* *C1_drop* *C2_drop*: Creates a ternary droplet with specified radius and composition (C1_drop, C2_drop, C3_drop = 1 - C1_drop - C2_drop) surrounded by pure C3 solvent. Small random fluctuations (±0.01) are added within the droplet.
-
-.. math::
-
-   \text{subNbx} = \frac{N_x}{P_x} + 2h_x \\
-   \text{subNby} = \frac{N_y}{P_y} + 2h_y \\
-   \text{subNbz} = \frac{N_z}{P_z} + 2h_z
-
-where hₓ = hᵧ = hᵤ = 2 is the halo extent required for gradient and Laplacian calculations.
-
-**Parameters**
-
-This fix accepts several internal parameters that control the thermodynamic and transport properties:
-
-* **tau_r**, **tau_p**, **tau_s**: Relaxation times for momentum transport and order parameter transport. These control the viscosity and diffusivity of the fluid components.
-
-* **gamma_p**, **gamma_s**: Mobility coefficients controlling the rate of change of the phase variables φ and ψ.
-
-* **kappa1**, **kappa2**, **kappa3**: Surface tension parameters that determine the interfacial tensions between the three components. The surface tension between components m and n is given by:
-
-  .. math::
-
-     \gamma_{mn} = \frac{\sqrt{(\kappa_m + \kappa_n)(\lambda_m + \lambda_n)}}{6}
-
-* **alpha**: Gradient energy coefficient.
-
-* **C1**, **C2**, **C3**: Bulk concentrations of the three components (must sum to 1.0).
-
-Future versions may allow passing these parameters directly via the input script.
+* *init mixed_droplet*: Initializes a ternary droplet with specified radius and composition (C1_drop, C2_drop, 1 - C1_drop - C2_drop) surrounded by fluid component 3. Small random fluctuations (of the order of 0.01) are added within the droplet.
 
 ----------
 
-**Output**
+This *fix* accepts several internal parameters that control the thermodynamic and transport properties:
 
-The *dumpxdmf* keyword enables output of the fluid fields to files that can be visualized using Paraview or other XDMF-compatible visualization software. The output includes:
+* *tau_r*, *tau_p*, *tau_s*: Values to these parameters controls the relaxation times :math:`\tau_\rho`, :math:`\tau_\phi`, and :math:`\tau_\psi`. By default, the values are set to 1.
 
-* Density field ρ (converted to physical units)
-* Order parameters φ and ψ (converted to physical units)
-* Pressure field p (converted to physical units)
-* Velocity field **u** (converted to physical units)
+* *gamma_p*, *gamma_s*: Values to these parameters controls the constants :math:`\Gamma_\phi, \Gamma_\psi`. By default, the values are set to 1.
+
+* *kappa1*, *kappa2*, *kappa3*: Values to these parameters controls the constants :math:`\kappa_i, i=1,2,3`
+
+* *alpha*: Value to this parameter controls :math:`\alpha`.
+
+* *C1*, *C2*, *C3*: Initial compositions of the three fluid components. Used in the following initial configurations: *init mixture* and *init film*.
+
+
+----------
+
+The *dumpxdmf* keyword enables output of the fluid fields to files that can be visualized using Paraview or other XDMF-compatible visualization software. The output includes the followig in LB units:
+
+* Density field :math:`\rho`
+* Order parameters :math:`\phi` and :math:`\psi`
+* Pressure field :math:`p`
+* Velocity field :math:`u`
 
 Two files are created:
 
@@ -165,19 +176,8 @@ The concentration fields can be recovered from the output using:
 
 ----------
 
-**Boundary Conditions**
-
-The ternary lattice-Boltzmann implementation currently supports periodic boundary conditions in all three directions. The boundary conditions are specified through the main LAMMPS :doc:`boundary <boundary>` command and must be set to periodic (p p p) for proper operation.
-
-*Periodic Boundaries*
-
-With periodic boundary conditions, the fluid domain wraps around in all directions. The distribution functions that stream out of one side of the simulation box re-enter from the opposite side. This is handled automatically through the MPI communication scheme, which includes a halo region of 2 lattice layers on each side of the local processor subdomain.
-
-The halo communication ensures that:
-
-* Gradient calculations (∇ρ, ∇φ, ∇ψ) required for the chemical potentials can be performed correctly near subdomain boundaries
-* Laplacian calculations (∇²ρ, ∇²φ, ∇²ψ) have access to necessary neighbor information
-* Streaming of distribution functions across processor boundaries is handled correctly
+The ternary lattice-Boltzmann implementation currently only supports periodic boundary conditions in all three directions. The boundary conditions are specified through the main LAMMPS :doc:`boundary <boundary>` command. 
+By default LAMMPS uses a periodic (p p p) boundary condition and thus can be ignored in the input script.
 
 ----------
 
@@ -191,17 +191,12 @@ This fix is part of the LATBOLTZ package. It is only enabled if LAMMPS was built
 * The boundary conditions must be periodic (p p p) in all three directions.
 * Shrink-wrapped boundary conditions are not permitted.
 * This fix requires MPI and cannot be compiled with MPI_STUBS.
-* Currently does **not support coupling to molecular dynamics particles**. Particle-fluid interactions available in :doc:`lb/viscous <fix_lb_viscous>` are not yet implemented for the multicomponent case.
+* Currently does not support coupling to molecular dynamics particles**. Particle-fluid interactions available in :doc:`lb/viscous <fix_lb_viscous>` are not yet implemented for the multicomponent case.
 
 Related commands
 """"""""""""""""
 
 :doc:`fix lb/fluid <fix_lb_fluid>`
-:doc:`fix lb/viscous <fix_lb_viscous>`
-:doc:`compute lb/fluid <compute_lb_fluid>` 
-:doc:`compute lb/multicomponent <compute_lb_multicomponent>`
-:doc:`compute lb/viscous <compute_lb_viscous>`
-:doc:`pair lb/multicomponent <pair_lb_multicomponent>`
 
 Default
 """""""
@@ -237,8 +232,8 @@ Ternary model implementation:
 
 .. _ArumugamKumar2024:
 
-**(Arumugam Kumar)** Arumugam Kumar, G.R., Andrews, J.P., Schiller, U.D., Implementation of a ternary lattice Boltzmann model in LAMMPS, Computer Physics Communications 294, 108898 (2024).
+**(Arumugam Kumar et al.)** Arumugam Kumar, G.R., Andrews, J.P., Schiller, U.D., Implementation of a ternary lattice Boltzmann model in LAMMPS, Computer Physics Communications 294, 108898 (2024).
 
-.. _Semprebon2016:
+.. .. _Semprebon2016:
 
-**(Semprebon)** Semprebon, C., Krüger, T., Kusumaatmaja, H., Ternary free-energy lattice Boltzmann model with tunable surface tensions and contact angles, Phys. Rev. E 93, 033305 (2016).
+.. **(Semprebon et al.)** Semprebon, C., Krüger, T., Kusumaatmaja, H., Ternary free-energy lattice Boltzmann model with tunable surface tensions and contact angles, Phys. Rev. E 93, 033305 (2016).
