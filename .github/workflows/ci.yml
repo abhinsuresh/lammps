@@ -1,0 +1,26 @@
+name: ctest CI
+
+on: 
+  push:
+    branches:
+      - feature/CI
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure with tests
+        run: |
+          cmake -S cmake -B build -D PACKAGE_LATBOLTZ=yes \
+                -D ENABLE_TESTING=yes
+                
+      - name: Build
+        run: |
+          cmake --build build --parallel 4
+          
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
