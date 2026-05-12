@@ -1,9 +1,9 @@
 name: ctest CI
 
 on: 
-  push:
+  pull_request:
     branches:
-      - feature/CI
+      - ternary-lbm
 
 jobs:
   build-and-test:
