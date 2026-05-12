@@ -15,7 +15,7 @@ jobs:
 
       - name: Configure with tests
         run: |
-          cmake -S cmake -B build -D PACKAGE_LATBOLTZ=yes \
+          cmake -S cmake -B build -D PKG_LATBOLTZ=yes \
                 -D ENABLE_TESTING=yes
                 
       - name: Build
