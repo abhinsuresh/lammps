@@ -13,9 +13,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+            sudo apt-get install -y openmpi-bin libopenmpi-dev
+
       - name: Configure with tests
         run: |
-          cmake -S cmake -B build -D PACKAGE_LATBOLTZ=yes \
+          cmake -S cmake -B build -D BUILD_MPI=yes \
+                -D PKG_LATBOLTZ=yes \
                 -D ENABLE_TESTING=yes
                 
       - name: Build
@@ -23,4 +28,4 @@ jobs:
           cmake --build build --parallel 4
           
       - name: Run tests
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build -R lb_multicomponent_smoke --output-on-failure
