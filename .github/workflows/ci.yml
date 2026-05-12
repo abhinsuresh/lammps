@@ -15,12 +15,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-            sudo apt-get update
-            sudo apt-get install -y build-essential cmake openmpi-bin libopenmpi-dev
+            sudo apt-get install -y openmpi-bin libopenmpi-dev
 
       - name: Configure with tests
         run: |
-          cmake -S cmake -B build -D BUILD_MPI=yes \ 
+          cmake -S cmake -B build -D BUILD_MPI=yes \
                 -D PKG_LATBOLTZ=yes \
                 -D ENABLE_TESTING=yes
                 
