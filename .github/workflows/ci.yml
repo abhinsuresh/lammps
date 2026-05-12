@@ -15,7 +15,8 @@ jobs:
 
       - name: Configure with tests
         run: |
-          cmake -S cmake -B build -D PKG_LATBOLTZ=yes \
+          cmake -S cmake -B build -D BUILD_MPI=yes \ 
+                -D LAMMPS_MACHINE=mpi -D PKG_LATBOLTZ=yes \
                 -D ENABLE_TESTING=yes
                 
       - name: Build
