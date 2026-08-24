@@ -214,6 +214,16 @@ endif()
   set_tests_properties(${TNAME} PROPERTIES LABELS "${TEST_TAGS}")
 endforeach()
 
+#test for lattice boltzman multicomponent
+add_executable(test_fix_lb_multicomponent test_fix_lb_multicomponent.cpp)
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(test_fix_lb_multicomponent PRIVATE USING_STATIC_LIBS=1)
+endif()
+target_link_libraries(test_fix_lb_multicomponent PRIVATE lammps GTest::GTest)
+
+add_test(NAME FixLBMulticomponent:plain COMMAND test_fix_lb_multicomponent)
+
+
 # dihedral style tester
 add_executable(test_dihedral_style test_dihedral_style.cpp)
 target_link_libraries(test_dihedral_style PRIVATE lammps style_tests)
