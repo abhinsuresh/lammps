@@ -1,4 +1,6 @@
 #include "gtest/gtest.h"
+#include "test_lb_main.h"
+#include "yaml_writer.h"
 
 #include "fix.h"
 #include "input.h"
@@ -22,6 +24,7 @@ LAMMPS *init_lammps()
 
     LAMMPS *lmp = new LAMMPS(argc, argv, MPI_COMM_WORLD);
 
+    // utility lambda to improve readability
     auto command = [&](const std::string &line)
     {
         lmp->input->one(line);
@@ -42,6 +45,18 @@ LAMMPS *init_lammps()
 void run_lammps(LAMMPS *lmp)
 {
     lmp->input->one("run 10");
+}
+
+void generate_yaml_file(const char *outfile,
+                        const TestConfig &config)
+{
+    LAMMPS *lmp = init_lammps();
+
+    YamlWriter writer(outfile);
+
+    write_yaml_header(&writer, &config, lmp->version);
+
+    delete lmp;
 } 
 
 TEST(FixLBMulticomponent, plain)
@@ -59,6 +74,7 @@ TEST(FixLBMulticomponent, plain)
     delete lmp;
 }
 
+/*
 int main(int argc, char **argv)
 {
     MPI_Init(&argc, &argv);
@@ -69,3 +85,5 @@ int main(int argc, char **argv)
     MPI_Finalize();
     return result;
 }
+*/
+
