@@ -1,6 +1,0 @@
----
-lammps_version: 27 Dec 2024
-epsilon: 1e-14
-pre_commands: ! ""
-post_commands: ! ""
-...

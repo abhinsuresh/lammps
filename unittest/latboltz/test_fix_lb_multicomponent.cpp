@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "test_lb_main.h"
+#include "test_main.h"
 #include "yaml_writer.h"
 
 #include "fix.h"
@@ -47,14 +47,13 @@ void run_lammps(LAMMPS *lmp)
     lmp->input->one("run 10");
 }
 
-void generate_yaml_file(const char *outfile,
-                        const TestConfig &config)
+void generate_yaml_file(const char *outfile, const TestConfig &config)
 {
     LAMMPS *lmp = init_lammps();
 
     YamlWriter writer(outfile);
 
-    write_yaml_header(&writer, &config, lmp->version);
+    write_yaml_header(&writer, &test_config, lmp->version);
 
     delete lmp;
 } 
