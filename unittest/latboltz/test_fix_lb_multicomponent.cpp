@@ -3,6 +3,7 @@
 #include "yaml_writer.h"
 
 #include "fix.h"
+#include "fix_lb_multicomponent.h"
 #include "input.h"
 #include "lammps.h"
 #include "modify.h"
@@ -68,8 +69,22 @@ TEST(FixLBMulticomponent, plain)
     ASSERT_EQ(fixes.size(), 1);
     ASSERT_NE(fixes[0], nullptr);
 
+    auto *fix = dynamic_cast<FixLbMulticomponent *>(fixes[0]);
+    
+    ASSERT_NE(fix, nullptr);
+    
+    double jx0, jy0, jz0;
+    fix->get_total_momentum(jx0, jy0, jz0);
+
     run_lammps(lmp); 
 
+    double jx1, jy1, jz1;
+    fix->get_total_momentum(jx1, jy1, jz1);
+    
+    EXPECT_NEAR(jx1, jx0, 1e-3);
+    EXPECT_NEAR(jy1, jy0, 1e-3);
+    EXPECT_NEAR(jz1, jz0, 1e-3);
+    
     delete lmp;
 }
 

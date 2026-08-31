@@ -8,7 +8,8 @@ if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(test_fix_lb_multicomponent PRIVATE USING_STATIC_LIBS=1)
 endif()
 
-target_include_directories(test_fix_lb_multicomponent PRIVATE ${FORCE_STYLE_TEST_DIR})
+target_include_directories(test_fix_lb_multicomponent PRIVATE ${FORCE_STYLE_TEST_DIR}
+                            ${LAMMPS_SOURCE_DIR}/LATBOLTZ)
 
 target_link_libraries(test_fix_lb_multicomponent PRIVATE lammps style_tests)
 
