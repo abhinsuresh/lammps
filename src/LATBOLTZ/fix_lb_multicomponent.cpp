@@ -67,6 +67,29 @@ void FixLbMulticomponent::end_of_step()
   dump_xdmf(update->ntimestep);
 }
 
+void FixLbMulticomponent::get_total_momentum(double &jx, double &jy, double &jz)
+{
+  double local[3] = {0.0, 0.0, 0.0};
+  double global[3];
+    
+  for (int x = halo_extent[0]; x < subNbx - halo_extent[0]; ++x)
+    for (int y = halo_extent[1]; y < subNby - halo_extent[1]; ++y)
+      for (int z = halo_extent[2]; z < subNbz - halo_extent[2]; ++z)
+        for(int i = 0; i < numvel; ++i){
+            local[0] += f_lb[x][y][z][i] * e19[i][0];
+            local[1] += f_lb[x][y][z][i] * e19[i][1];
+            local[2] += f_lb[x][y][z][i] * e19[i][2];
+        }
+  
+  MPI_Reduce(local, global, 3, MPI_DOUBLE, MPI_SUM, 0, world);
+  
+  if (me == 0){
+    jx = global[0];
+    jy = global[1];
+    jz = global[2];
+  }
+}
+
 void FixLbMulticomponent::lb_update()
 {
 
