@@ -9,7 +9,7 @@
 #include "modify.h"
 
 #include <mpi.h>
-
+#include <iostream>
 #include <string>
 
 using namespace LAMMPS_NS;
@@ -45,7 +45,7 @@ LAMMPS *init_lammps()
 
 void run_lammps(LAMMPS *lmp)
 {
-    lmp->input->one("run 10");
+    lmp->input->one("run 100");
 }
 
 void generate_yaml_file(const char *outfile, const TestConfig &config)
@@ -63,6 +63,9 @@ TEST(FixLBMulticomponent, plain)
 {
 
     LAMMPS *lmp = init_lammps();
+    
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     auto fixes = lmp->modify->get_fix_by_style("lb/multicomponent");    
         
@@ -75,16 +78,19 @@ TEST(FixLBMulticomponent, plain)
     
     double jx0, jy0, jz0;
     fix->get_total_momentum(jx0, jy0, jz0);
-
+    if (rank == 0)
+        std::cout << "Intial P: " << jx0 << " " << jy0 << " " << jz0 << std::endl;
     run_lammps(lmp); 
 
     double jx1, jy1, jz1;
     fix->get_total_momentum(jx1, jy1, jz1);
     
-    EXPECT_NEAR(jx1, jx0, 1e-3);
-    EXPECT_NEAR(jy1, jy0, 1e-3);
-    EXPECT_NEAR(jz1, jz0, 1e-3);
-    
+    if (rank == 0){
+      std::cout << "Final P: " << jx1 << " " << jy1 << " " << jz1 << std::endl;
+      EXPECT_NEAR(jx1, jx0, 1e-6);
+      EXPECT_NEAR(jy1, jy0, 1e-6);
+      EXPECT_NEAR(jz1, jz0, 1e-6);
+    }
     delete lmp;
 }
 

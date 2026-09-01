@@ -16,7 +16,9 @@ target_link_libraries(test_fix_lb_multicomponent PRIVATE lammps style_tests)
 
 file(GLOB LB_FLUID_TESTS LIST_DIRECTORIES false ${TEST_INPUT_FOLDER}/test_lb_multicomponent*.yaml)
 foreach(TEST ${LB_FLUID_TESTS})
-add_test(NAME FixLBMulticomponent:plain COMMAND test_fix_lb_multicomponent ${TEST})
+add_test(NAME FixLBMulticomponent:plain COMMAND 
+         ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2
+         $<TARGET_FILE:test_fix_lb_multicomponent> ${TEST})
 endforeach()
 #set_tests_properties(FixLBMulticomponent:plain PROPERTIES
 #                    PASS_REGULAR_EXPRESSION "Total wall time")
