@@ -25,7 +25,7 @@ jobs:
                 
       - name: Build
         run: |
-          cmake --build build --parallel 4
+          cmake --build build -j
           
       - name: Run tests
         run: ctest --test-dir build -R 'FixLBMulticomponent:plain' --output-on-failure
