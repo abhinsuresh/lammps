@@ -25,7 +25,7 @@ jobs:
                 
       - name: Build
         run: |
-          cmake --build build --parallel 4
+          cmake --build build -j4
           
       - name: Run tests
-        run: ctest --test-dir build -R lb_multicomponent_smoke --output-on-failure
+        run: ctest --test-dir build -R 'FixLBMulticomponent:plain' --output-on-failure
