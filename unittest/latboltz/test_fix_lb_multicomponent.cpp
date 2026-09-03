@@ -107,24 +107,35 @@ TEST(FixLBMulticomponent, plain)
     ASSERT_NE(fix, nullptr);
     
     // obtain initial total momentum
-    double jx0, jy0, jz0;
+    double jx0, jy0, jz0, m0;
+    jx0 = jy0 = jz0 = m0 = 0.0;
     fix->get_total_momentum(jx0, jy0, jz0);
-    if (rank == 0)
-        std::cout << "Intial P: " << jx0 << " " << jy0 << " " << jz0 << std::endl;
+    fix->get_total_mass(m0);
+    if (rank == 0){
+      std::cout << "Initial P: " << jx0 << " " << jy0 << " " << jz0 << std::endl;
+      std::cout << "Initial M: " << m0 << std::endl;
+      EXPECT_NEAR(jx0, 0, 1e-6);
+      EXPECT_NEAR(jy0, 0, 1e-6);
+      EXPECT_NEAR(jz0, 0, 1e-6);
+    }
     
     // runs lammps time steps invoking fix_lb_multicomponent
     run_lammps(lmp); 
 
     // obtain final total momentum
-    double jx1, jy1, jz1;
+    double jx1, jy1, jz1, m1;
+    jx1 = jy1 = jz1 = m1 = 0.0;
     fix->get_total_momentum(jx1, jy1, jz1);
+    fix->get_total_mass(m1);
     
     // verify conservation total momentum
     if (rank == 0){
       std::cout << "Final P: " << jx1 << " " << jy1 << " " << jz1 << std::endl;
-      EXPECT_NEAR(jx1, jx0, 1e-6);
-      EXPECT_NEAR(jy1, jy0, 1e-6);
-      EXPECT_NEAR(jz1, jz0, 1e-6);
+      std::cout << "Final M: " << m1 << std::endl;
+      EXPECT_NEAR(jx1, 0, 1e-6);
+      EXPECT_NEAR(jy1, 0, 1e-6);
+      EXPECT_NEAR(jz1, 0, 1e-6);
+      EXPECT_NEAR(m0, m1, 1e-6);
     }
     delete lmp;
 }

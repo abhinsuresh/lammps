@@ -12,7 +12,7 @@ if (PKG_LATBOLTZ)
     target_include_directories(test_fix_lb_multicomponent PRIVATE ${FORCE_STYLE_TEST_DIR}
                                 ${LAMMPS_SOURCE_DIR}/LATBOLTZ)
 
-    target_link_libraries(test_fix_lb_multicomponent PRIVATE lammps style_tests)
+    target_link_libraries(test_fix_lb_multicomponent PRIVATE style_tests)
 
     file(GLOB LB_FLUID_TESTS LIST_DIRECTORIES false ${TEST_INPUT_FOLDER}/test_lb_multicomponent*.yaml)
     foreach(TEST ${LB_FLUID_TESTS})
