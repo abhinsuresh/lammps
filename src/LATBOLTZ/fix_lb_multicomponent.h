@@ -67,6 +67,8 @@ class FixLbMulticomponent : public FixLbFluid {
   void get_total_mass(double &);
 
  private:
+  friend class FixLbMulticomponentTestAccess;
+
   double tau_r, tau_p, tau_s;
   double gamma_p, gamma_s;
   double kappa1, kappa2, kappa3;

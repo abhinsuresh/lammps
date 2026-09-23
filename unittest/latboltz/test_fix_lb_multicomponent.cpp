@@ -27,12 +27,112 @@
 #include "fix_lb_multicomponent.h"
 #include "lammps.h"
 #include "modify.h"
+#include "latboltz_const.h"
 
+#include <array>
 #include <iostream>
+#include <memory>
 #include <mpi.h>
 #include <string>
 
 using namespace LAMMPS_NS;
+
+namespace LAMMPS_NS {
+
+// Keep access to lattice internals local to this test executable.
+class FixLbMulticomponentTestAccess {
+public:
+    using Populations = std::array<double, 19>;
+    struct Site { int x, y, z; };
+    struct Moments {
+        double rho, phi, psi;
+        std::array<double, 3> velocity;
+    };
+
+    static Site owned_site(const FixLbMulticomponent &fix)
+    {
+        return {fix.subNbx / 2, fix.subNby / 2, fix.subNbz / 2};
+    }
+
+    static void set_populations(FixLbMulticomponent &fix, Site site,
+                                const Populations &f, const Populations &g,
+                                const Populations &k)
+    {
+        for (int i = 0; i < 19; ++i) {
+            fix.f_lb[site.x][site.y][site.z][i] = f[i];
+            fix.g_lb[site.x][site.y][site.z][i] = g[i];
+            fix.k_lb[site.x][site.y][site.z][i] = k[i];
+        }
+    }
+
+    static Moments reconstruct(FixLbMulticomponent &fix, Site site)
+    {
+        fix.calc_moments(site.x, site.y, site.z);
+        const auto *u = fix.u_lb[site.x][site.y][site.z];
+        return {fix.density_lb[site.x][site.y][site.z],
+                fix.phi_lb[site.x][site.y][site.z],
+                fix.psi_lb[site.x][site.y][site.z], {u[0], u[1], u[2]}};
+    }
+};
+
+} // namespace LAMMPS_NS
+
+class LBMomentReconstruction : public ::testing::Test {
+protected:
+    std::unique_ptr<LAMMPS> lmp;
+    FixLbMulticomponent *fix = nullptr;
+
+    void SetUp() override
+    {
+        const char *args[] = {"LBMomentReconstruction", "-log", "none", "-screen", "none",
+                              "-nocite"};
+        lmp.reset(new LAMMPS(sizeof(args) / sizeof(args[0]),
+                            const_cast<char **>(args), MPI_COMM_WORLD));
+        lmp->input->one("boundary p p p");
+        lmp->input->one("region fluid block 0 8 0 8 0 8");
+        lmp->input->one("create_box 0 fluid");
+        lmp->input->one("timestep 1.0");
+        lmp->input->one("fix mcmp all lb/multicomponent 1 0.166667 1.0 D3Q19 dx 1 init mixture");
+        auto fixes = lmp->modify->get_fix_by_style("lb/multicomponent");
+        ASSERT_EQ(fixes.size(), 1);
+        fix = dynamic_cast<FixLbMulticomponent *>(fixes[0]);
+        ASSERT_NE(fix, nullptr);
+    }
+
+    void TearDown() override { lmp.reset(); }
+};
+
+TEST_F(LBMomentReconstruction, ReconstructsDensityCompositionAndVelocity)
+{
+    using Access = FixLbMulticomponentTestAccess;
+    Access::Populations f{}, g{}, k{};
+    // Resolve direction indices from D3Q19, while keeping expected moments explicit.
+    for (int i = 0; i < 19; ++i) {
+        const int x = e19[i][0], y = e19[i][1], z = e19[i][2];
+        if (x == 0 && y == 0 && z == 0) {
+            f[i] = 2.0;
+            g[i] = 0.3;
+            k[i] = 0.4;
+        } else if (y == 0 && z == 0) {
+            f[i] = x == 1 ? 0.4 : 0.1;
+        } else if (x == 0 && z == 0) {
+            f[i] = y == 1 ? 0.2 : 0.5;
+        } else if (x == 0 && y == 0) {
+            f[i] = z == 1 ? 0.6 : 0.2;
+        }
+    }
+    const auto site = Access::owned_site(*fix);
+    Access::set_populations(*fix, site, f, g, k);
+    const auto actual = Access::reconstruct(*fix, site);
+
+    constexpr double tolerance = 1e-13;
+    EXPECT_NEAR(actual.rho, 4.0, tolerance);
+    EXPECT_NEAR(actual.phi, 0.3, tolerance);
+    EXPECT_NEAR(actual.psi, 0.4, tolerance);
+    EXPECT_NEAR(actual.velocity[0], 0.075, tolerance);
+    EXPECT_NEAR(actual.velocity[1], -0.075, tolerance);
+    EXPECT_NEAR(actual.velocity[2], 0.100, tolerance);
+}
 
 LAMMPS *init_lammps()
 {
@@ -152,4 +252,3 @@ int main(int argc, char **argv)
     return result;
 }
 */
-
