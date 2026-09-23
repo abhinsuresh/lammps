@@ -19,7 +19,9 @@
 ------------------------------------------------------------------------- */
 
 #ifdef FIX_CLASS
+// clang-format off
 FixStyle(lb/multicomponent, FixLbMulticomponent)
+// clang-format on
 #else
 
 #ifndef LMP_FIX_LB_MULTICOMPONENT_H
@@ -61,8 +63,12 @@ class FixLbMulticomponent : public FixLbFluid {
   int setmask() override;
   void initial_integrate(int) override;
   void end_of_step() override;
+  void get_total_momentum(double &, double &, double &);
+  void get_total_mass(double &);
 
  private:
+  friend class FixLbMulticomponentTestAccess;
+
   double tau_r, tau_p, tau_s;
   double gamma_p, gamma_s;
   double kappa1, kappa2, kappa3;
