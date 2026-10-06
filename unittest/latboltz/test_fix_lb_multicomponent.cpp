@@ -44,16 +44,15 @@ class FixLbMulticomponentTestAccess {
 public:
     using Populations = std::array<double, 19>;
     struct Site { int x, y, z; };
-    struct Moments {
-        double rho, phi, psi;
-        std::array<double, 3> velocity;
-    };
+    struct Moments { double rho, phi, psi;
+                     std::array<double, 3> velocity; };
 
-    static Site owned_site(const FixLbMulticomponent &fix)
-    {
-        return {fix.subNbx / 2, fix.subNby / 2, fix.subNbz / 2};
+    // return a interior site of subdomain, avoiding halo sites
+    static Site interior_site(const FixLbMulticomponent &fix){
+        return {fix.halo_extent[0], fix.halo_extent[1], fix.halo_extent[2]};
     }
 
+    // Populate fix object f_lb, g_lb, k_lb
     static void set_populations(FixLbMulticomponent &fix, Site site,
                                 const Populations &f, const Populations &g,
                                 const Populations &k)
@@ -65,25 +64,26 @@ public:
         }
     }
 
-    static Moments reconstruct(FixLbMulticomponent &fix, Site site)
+    // Call the unit calc_moments of the fix object
+    static Moments calculate_moments(FixLbMulticomponent &fix, Site site)
     {
         fix.calc_moments(site.x, site.y, site.z);
         const auto *u = fix.u_lb[site.x][site.y][site.z];
         return {fix.density_lb[site.x][site.y][site.z],
                 fix.phi_lb[site.x][site.y][site.z],
-                fix.psi_lb[site.x][site.y][site.z], {u[0], u[1], u[2]}};
+                fix.psi_lb[site.x][site.y][site.z], 
+                {u[0], u[1], u[2]}};
     }
 };
 
 } // namespace LAMMPS_NS
 
-class LBMomentReconstruction : public ::testing::Test {
+class FixLbMulticomponentTest : public ::testing::Test {
 protected:
     std::unique_ptr<LAMMPS> lmp;
     FixLbMulticomponent *fix = nullptr;
 
-    void SetUp() override
-    {
+    void SetUp() override{
         const char *args[] = {"LBMomentReconstruction", "-log", "none", "-screen", "none",
                               "-nocite"};
         lmp.reset(new LAMMPS(sizeof(args) / sizeof(args[0]),
@@ -99,39 +99,48 @@ protected:
         ASSERT_NE(fix, nullptr);
     }
 
-    void TearDown() override { lmp.reset(); }
+    void TearDown() override { 
+        lmp.reset(); 
+    }
 };
 
-TEST_F(LBMomentReconstruction, ReconstructsDensityCompositionAndVelocity)
+// TEST_F(FixtureClassName, TestName)
+TEST_F(FixLbMulticomponentTest, ReconstructsDensityCompositionAndVelocity)
 {
     using Access = FixLbMulticomponentTestAccess;
     Access::Populations f{}, g{}, k{};
     // Resolve direction indices from D3Q19, while keeping expected moments explicit.
-    for (int i = 0; i < 19; ++i) {
-        const int x = e19[i][0], y = e19[i][1], z = e19[i][2];
-        if (x == 0 && y == 0 && z == 0) {
+    for (int i = 0; i < 19; ++i) 
+      {
+        const int ex = e19[i][0], ey = e19[i][1], ez = e19[i][2];
+        if (ex == 0 && ey == 0 && ez == 0)
+        {
             f[i] = 2.0;
             g[i] = 0.3;
             k[i] = 0.4;
-        } else if (y == 0 && z == 0) {
-            f[i] = x == 1 ? 0.4 : 0.1;
-        } else if (x == 0 && z == 0) {
-            f[i] = y == 1 ? 0.2 : 0.5;
-        } else if (x == 0 && y == 0) {
-            f[i] = z == 1 ? 0.6 : 0.2;
-        }
-    }
-    const auto site = Access::owned_site(*fix);
+        } 
+        else if (ey == 0 && ez == 0) 
+            f[i] = ex == 1 ? 0.4 : 0.1;
+        else if (ex == 0 && ez == 0) 
+            f[i] = ey == 1 ? 0.2 : 0.5;
+        else if (ex == 0 && ey == 0) 
+            f[i] = ez == 1 ? 0.6 : 0.2;
+      }
+    // Get interior lattice site of the subdomain
+    const auto site = Access::interior_site(*fix);
+    // Set fix object f_lb, g_lb, k_lb values
     Access::set_populations(*fix, site, f, g, k);
-    const auto actual = Access::reconstruct(*fix, site);
+    // Call the unit fix.calc_moments and returns density, phi, psi, velocity
+    const auto calculated = Access::calculate_moments(*fix, site);
 
     constexpr double tolerance = 1e-13;
-    EXPECT_NEAR(actual.rho, 4.0, tolerance);
-    EXPECT_NEAR(actual.phi, 0.3, tolerance);
-    EXPECT_NEAR(actual.psi, 0.4, tolerance);
-    EXPECT_NEAR(actual.velocity[0], 0.075, tolerance);
-    EXPECT_NEAR(actual.velocity[1], -0.075, tolerance);
-    EXPECT_NEAR(actual.velocity[2], 0.100, tolerance);
+    // check calcualated values against reference
+    EXPECT_NEAR(calculated.rho, 4.0, tolerance);
+    EXPECT_NEAR(calculated.phi, 0.3, tolerance);
+    EXPECT_NEAR(calculated.psi, 0.4, tolerance);
+    EXPECT_NEAR(calculated.velocity[0], 0.075, tolerance);
+    EXPECT_NEAR(calculated.velocity[1], -0.075, tolerance);
+    EXPECT_NEAR(calculated.velocity[2], 0.100, tolerance);
 }
 
 LAMMPS *init_lammps()
@@ -176,7 +185,7 @@ void generate_yaml_file(const char *outfile, const TestConfig &config)
 
     delete lmp;
 } 
-
+// TEST(TestSuitName, TestName)
 TEST(FixLBMulticomponent, plain)
 {
     LAMMPS *lmp = init_lammps();
@@ -239,16 +248,3 @@ TEST(FixLBMulticomponent, plain)
     }
     delete lmp;
 }
-
-/*
-int main(int argc, char **argv)
-{
-    MPI_Init(&argc, &argv);
-
-    ::testing::InitGoogleTest(&argc, argv);
-    int result = RUN_ALL_TESTS();
-
-    MPI_Finalize();
-    return result;
-}
-*/
