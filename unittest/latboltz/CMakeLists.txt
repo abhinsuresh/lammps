@@ -21,9 +21,13 @@ if (PKG_LATBOLTZ AND BUILD_MPI)
                  --gtest_filter=FixLBMulticomponent.plain)
     add_mpi_test(NAME FixLBMulticomponent:moments NUM_PROCS 1 COMMAND
                  $<TARGET_FILE:test_fix_lb_multicomponent> ${TEST}
-                 --gtest_filter=LBMomentReconstruction.*)
+                 --gtest_filter=FixLbMulticomponentTest.*)
+    add_mpi_test(NAME FixLBMulticomponent:derivatives NUM_PROCS 1 COMMAND
+                 $<TARGET_FILE:test_fix_lb_multicomponent> ${TEST}
+                 --gtest_filter=FixLbDerivativeTest.*:*/FixLbDerivativePolynomialTest.*)
     set_tests_properties(FixLBMulticomponent:plain PROPERTIES PROCESSORS 2 TIMEOUT 120)
     set_tests_properties(FixLBMulticomponent:moments PROPERTIES PROCESSORS 1 TIMEOUT 30)
+    set_tests_properties(FixLBMulticomponent:derivatives PROPERTIES PROCESSORS 1 TIMEOUT 30)
     endforeach()
 endif()
 #set_tests_properties(FixLBMulticomponent:plain PROPERTIES
